@@ -1,0 +1,18 @@
+# .gitignore (in VS Code)
+
+# Virtual Environment
+venv/
+
+# Python
+__pycache__/
+*.pyc
+
+# Django
+db.sqlite3
+*.log
+
+# VS Code
+.vscode/
+
+# Operating System files
+.DS_Store
