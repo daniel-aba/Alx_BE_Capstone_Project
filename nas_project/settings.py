@@ -37,13 +37,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
-    # Third-party apps
+    
+        # Third-party apps
     'rest_framework',
 
     # Local apps
     'users.apps.UsersConfig',  # Explicit app config registration
     'items.apps.ItemsConfig',
+    'lending.apps.LendingConfig',
     # 'lending',  # To be added later
     # 'messaging', # To be added later
 ]
