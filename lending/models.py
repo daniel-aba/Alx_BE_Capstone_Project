@@ -1,7 +1,8 @@
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator
-from items.models import Item # Assuming Item model is in the 'items' app
+from django.utils import timezone
+from items.models import Item  # Assuming Item model is in the 'items' app
 
 # --- Status Choices ---
 # Defines the lifecycle of a lending request, directly matching project requirements.
@@ -104,3 +105,15 @@ class LendingRequest(models.Model):
     def __str__(self):
         """String representation for the Django Admin and debugging."""
         return f"Request for '{self.item.name}' by {self.borrower.username} - {self.status}"
+    
+    def save(self, *args, **kwargs):
+        """Override save to auto-set timestamps based on status changes."""
+        # Auto-set approved_at when status changes to approved
+        if self.status == 'APPROVED' and not self.approved_at:
+            self.approved_at = timezone.now()
+        
+        # Auto-set returned_at when status changes to completed
+        if self.status == 'COMPLETED' and not self.returned_at:
+            self.returned_at = timezone.now()
+            
+        super().save(*args, **kwargs)

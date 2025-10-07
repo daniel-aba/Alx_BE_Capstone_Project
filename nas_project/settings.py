@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'users.apps.UsersConfig',  # Explicit app config registration
     'items.apps.ItemsConfig',
     'lending.apps.LendingConfig',
-    # 'lending',  # To be added later
+    'lending',  
     # 'messaging', # To be added later
 ]
 
