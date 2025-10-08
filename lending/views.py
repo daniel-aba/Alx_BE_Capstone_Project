@@ -14,5 +14,12 @@ class LendingRequestViewSet(viewsets.ModelViewSet):
         user = self.request.user
         return LendingRequest.objects.filter(borrower=user) | LendingRequest.objects.filter(item__owner=user)
     
+    # Update the get_queryset method in LendingRequestViewSet
+def get_queryset(self):
+    user = self.request.user
+    return LendingRequest.objects.filter(
+        models.Q(borrower=user) | models.Q(item__owner=user)
+    ).select_related('borrower', 'item', 'item__owner').distinct()
+    
     def perform_create(self, serializer):
         serializer.save(borrower=self.request.user)
