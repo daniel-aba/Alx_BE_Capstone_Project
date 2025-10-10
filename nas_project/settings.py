@@ -25,7 +25,23 @@ SECRET_KEY = 'django-insecure-kmld-f=z2jn0e_3vv*ah238lu2&xt50#_dfz%gyskcg)-_jvig
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# For development - allow all hosts
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '*']
+
+# OR for more security in development:
+# ALLOWED_HOSTS = [
+#     'localhost',
+#     '127.0.0.1', 
+#     '0.0.0.0',
+#     '::1',  # IPv6 localhost
+# ]
+
+# For maximum security in production, you would use:
+# ALLOWED_HOSTS = [
+#     'your-domain.com',
+#     'www.your-domain.com',
+#     'your-server-ip',
+# ]
 
 
 # Application definition
@@ -38,8 +54,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     
-        # Third-party apps
+    # Third-party apps
     'rest_framework',
+    'rest_framework.authtoken',  # Add this for token authentication
 
     # Local apps
     'users.apps.UsersConfig',  # Explicit app config registration
@@ -133,3 +150,14 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Custom User Model Configuration
 AUTH_USER_MODEL = 'users.User'
+
+# Django REST Framework Configuration
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ]
+}
