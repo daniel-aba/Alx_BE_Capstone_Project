@@ -34,7 +34,7 @@ class LendingRequestSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("This item is currently not available for lending")
             
             # Check for overlapping availability periods (when item is marked unavailable)
-            overlapping_unavailable = item.availability_set.filter(
+            overlapping_unavailable = item.availabilities.filter(
                 unavailable_from__lte=requested_to,
                 unavailable_to__gte=requested_from
             ).exists()

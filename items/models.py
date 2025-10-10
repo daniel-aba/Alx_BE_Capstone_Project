@@ -23,7 +23,7 @@ class Item(models.Model):
 
     # Availability model (part of the plan, define it here for now)
 class Availability(models.Model):
-    item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='unavailability_periods')
+    item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='availabilities')
     unavailable_from = models.DateField()
     unavailable_to = models.DateField()
 
@@ -32,4 +32,3 @@ class Availability(models.Model):
 
     def __str__(self):
         return f"{self.item.name}: {self.unavailable_from} to {self.unavailable_to}"
-
