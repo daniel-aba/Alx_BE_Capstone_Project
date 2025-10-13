@@ -47,8 +47,9 @@ INSTALLED_APPS = [
     'users.apps.UsersConfig', 
     'items.apps.ItemsConfig',
     'lending.apps.LendingConfig',
+    'messaging',
     # 'lending', 
-    # 'messaging', 
+ 
 ]
 
 MIDDLEWARE = [

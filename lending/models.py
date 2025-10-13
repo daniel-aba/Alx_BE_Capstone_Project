@@ -4,15 +4,13 @@ from django.core.validators import MinValueValidator
 from django.utils import timezone
 from items.models import Item  # Assuming Item model is in the 'items' app
 
-# --- Status Choices ---
-# Defines the lifecycle of a lending request, directly matching project requirements.
+# --- Status Choices (SIMPLIFIED per instructions) ---
+# Defines the core lifecycle stages of a lending request.
 STATUS_CHOICES = [
-    ('PENDING', 'Pending Owner Review'),
+    ('PENDING', 'Pending Approval'),
     ('APPROVED', 'Approved by Owner'),
     ('DENIED', 'Denied by Owner'),
-    ('ON_LOAN', 'Currently on Loan'),
-    ('COMPLETED', 'Completed and Returned'),
-    ('CANCELED', 'Canceled by Borrower'),
+    ('COMPLETED', 'Returned and Completed'),
 ]
 
 class LendingRequest(models.Model):
@@ -96,10 +94,10 @@ class LendingRequest(models.Model):
         ordering = ['-created_at']
         # Optional constraint to prevent a user from requesting the same item for overlapping dates
         # constraints = [
-        #     models.UniqueConstraint(
-        #         fields=['item', 'borrower', 'requested_from', 'requested_to'], 
-        #         name='unique_lending_request'
-        #     )
+        #     models.UniqueConstraint(
+        #         fields=['item', 'borrower', 'requested_from', 'requested_to'], 
+        #         name='unique_lending_request'
+        #     )
         # ]
 
     def __str__(self):

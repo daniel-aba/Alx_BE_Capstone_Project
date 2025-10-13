@@ -8,7 +8,7 @@ from django.conf.urls.static import static # Import static
 from users.views import auth_client_view 
 
 urlpatterns = [
-    # ⭐ NEW: Map the root URL (http://127.0.0.1:8000/) to the client view
+    # ⭐ Root URL Mapping for Frontend Client
     path('', auth_client_view, name='auth_client'),
     
     path('admin/', admin.site.urls),
@@ -17,6 +17,10 @@ urlpatterns = [
     path('api/users/', include('users.urls')),
     path('api/items/', include('items.urls')),
     path('api/lending/', include('lending.urls')), 
+    
+    # ⭐ NEW: Include the messaging app's API URLs
+    # This assumes messaging/urls.py contains the DefaultRouter setup for MessageViewSet
+    path('api/messages/', include('messaging.urls')), 
     
     # DRF login/logout views for the browsable API
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework'))
