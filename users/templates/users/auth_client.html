@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Neighborhood Asset Sharing - Login/Register</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        form { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 5px; max-width: 400px; }
+        label { display: block; margin-top: 10px; font-weight: bold; }
+        input[type="text"], input[type="email"], input[type="password"] { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; }
+        button { margin-top: 15px; padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        #message-area { margin-top: 20px; padding: 10px; border: 1px solid #000; display: none; }
+    </style>
+</head>
+<body>
+    <h1>Welcome to the Asset Sharing Platform!</h1>
+
+    <div id="message-area"></div>
+    
+    <hr>
+
+    <section>
+        <h2>Register</h2>
+        <form id="register-form">
+            <label for="reg-username">Username:</label>
+            <input type="text" id="reg-username" name="username" required>
+            
+            <label for="reg-email">Email:</label>
+            <input type="email" id="reg-email" name="email" required>
+            
+            <label for="reg-password">Password:</label>
+            <input type="password" id="reg-password" name="password" required>
+            
+            <label for="reg-phone">Phone Number:</label>
+            <input type="text" id="reg-phone" name="phone_number" placeholder="+2547XXXXXXXX" required>
+            
+            <label for="reg-national-id">National ID (Optional):</label>
+            <input type="text" id="reg-national-id" name="national_id">
+
+            <button type="submit">Register</button>
+        </form>
+    </section>
+
+    <hr>
+
+    <section>
+        <h2>Login</h2>
+        <form id="login-form">
+            <label for="log-username">Username or Email:</label>
+            <input type="text" id="log-username" name="username_or_email" required>
+
+            <label for="log-password">Password:</label>
+            <input type="password" id="log-password" name="password" required>
+
+            <button type="submit">Login</button>
+        </form>
+    </section>
+
+    <script>
+        // NOTE: This JavaScript section is crucial for making your form work.
+        // It will need to send a POST request to your Django REST Framework endpoint.
+        const REGISTER_URL = '/api/users/'; // Assuming you have a registration endpoint here
+
+        document.getElementById('register-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const form = e.target;
+            const data = {
+                username: form.elements['username'].value,
+                email: form.elements['email'].value,
+                password: form.elements['password'].value,
+                phone_number: form.elements['phone_number'].value,
+                national_id: form.elements['national_id'].value,
+                // Do NOT include is_id_verified or is_phone_verified as they are read-only
+            };
+
+            console.log('Attempting to register with data:', data);
+
+            // Fetch API call goes here:
+            // fetch(REGISTER_URL, { 
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify(data)
+            // })
+            // .then(response => response.json())
+            // .then(data => { console.log('Success:', data); /* Handle success message */ })
+            // .catch(error => { console.error('Error:', error); /* Handle error message */ });
+            
+            document.getElementById('message-area').style.display = 'block';
+            document.getElementById('message-area').textContent = 'Registration data logged to console. You still need to implement the fetch() API call!';
+        });
+
+        // Add similar logic for the login-form submission...
+    </script>
+</body>
+</html>

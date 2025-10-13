@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os # Added 'os' for MEDIA_ROOT configuration
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -28,22 +29,6 @@ DEBUG = True
 # For development - allow all hosts
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '*']
 
-# OR for more security in development:
-# ALLOWED_HOSTS = [
-#     'localhost',
-#     '127.0.0.1', 
-#     '0.0.0.0',
-#     '::1',  # IPv6 localhost
-# ]
-
-# For maximum security in production, you would use:
-# ALLOWED_HOSTS = [
-#     'your-domain.com',
-#     'www.your-domain.com',
-#     'your-server-ip',
-# ]
-
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -56,14 +41,14 @@ INSTALLED_APPS = [
     
     # Third-party apps
     'rest_framework',
-    'rest_framework.authtoken',  # Add this for token authentication
+    'rest_framework.authtoken',
 
     # Local apps
-    'users.apps.UsersConfig',  # Explicit app config registration
+    'users.apps.UsersConfig', 
     'items.apps.ItemsConfig',
     'lending.apps.LendingConfig',
-    # 'lending',  # To be added later
-    # 'messaging', # To be added later
+    # 'lending', 
+    # 'messaging', 
 ]
 
 MIDDLEWARE = [
@@ -143,12 +128,19 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+# --- MEDIA FILE CONFIGURATION (REQUIRED for ImageField) ---
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+# -----------------------------------------------------------
+
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Custom User Model Configuration
+# Uses the custom model 'CustomUser' in the 'users' app.
 AUTH_USER_MODEL = 'users.User'
 
 # Django REST Framework Configuration
