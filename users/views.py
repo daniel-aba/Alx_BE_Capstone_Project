@@ -1,5 +1,5 @@
-from django.shortcuts import render # <-- NEW IMPORT
-from rest_framework import viewsets, generics
+from django.shortcuts import render 
+from rest_framework import viewsets, generics, permissions # Import permissions
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.response import Response
@@ -20,19 +20,33 @@ def auth_client_view(request):
     return render(request, 'users/auth_client.html')
 # --- End of New View ---
 
-# --- User Profile/Management (Requires Authentication) ---
+# --- User Profile/Management (Conditional Permissions) ---
 class UserViewSet(viewsets.ModelViewSet):
-    # Provides CRUD functionality for the User model (for staff or authorized users)
+    """
+    Provides CRUD functionality for the User model (for staff or authorized users).
+    Allows creation (POST) by anyone, but restricts all other methods.
+    """
     queryset = User.objects.all().order_by('id') 
     serializer_class = UserSerializer
-    # Allow authenticated users to view/edit their own profile
-    permission_classes = [IsAuthenticated]
+    
+    # 💥 UPDATED: Removed static permission_classes and implemented get_permissions
+    def get_permissions(self):
+        """
+        Instantiates and returns the list of permissions that this view requires.
+        """
+        # Allow POST (Create) without authentication
+        if self.request.method == 'POST':
+            return [permissions.AllowAny()]
+        
+        # Require authentication for all other actions (GET, PUT, PATCH, DELETE)
+        return [permissions.IsAuthenticated()]
 
 # --- Registration View (Allows Any) ---
 class UserRegistrationView(generics.CreateAPIView):
     """
     API view for user registration (creating a new user account).
     Returns user data along with the generated auth token.
+    (This is the primary registration endpoint, using AllowAny.)
     """
     queryset = User.objects.all()
     serializer_class = UserSerializer

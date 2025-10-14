@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.utils import timezone # 1. Import timezone for date checks
 from .models import LendingRequest
 # Import only the necessary serializers or none if only names are displayed
 from users.serializers import UserSerializer 
@@ -31,46 +32,51 @@ class LendingRequestSerializer(serializers.ModelSerializer):
         # Keep timestamps read-only as they are set by the database/view logic
         read_only_fields = ['borrower', 'approved_at', 'returned_at', 'created_at', 'updated_at']
     
-    # --- Custom Validation Methods ---
-    
-    def validate_requested_to(self, value):
-        """Custom validation for requested_to field."""
-        # Check if requested_from is available in initial_data (for create) or instance (for update)
-        requested_from = self.initial_data.get('requested_from')
-        if not requested_from and self.instance:
-            requested_from = self.instance.requested_from
-            
-        if requested_from and value <= requested_from:
-            raise serializers.ValidationError("The return date must be after the requested start date.")
-        return value
+    # Removed validate_requested_to as its logic is now in validate()
 
     def validate(self, data):
         """
         Main object-level validation:
-        1. Ensure item owner is not the borrower.
-        2. Perform item availability and date overlap checks.
+        1. Ensure date range is valid (to > from) and not in the past. (FIX APPLIED HERE)
+        2. Ensure item owner is not the borrower.
+        3. Perform item availability and date overlap checks.
         """
+        
+        # 1. Retrieve the validated date objects (DRF ensures these are date/datetime objects here)
+        requested_from = data.get('requested_from', getattr(self.instance, 'requested_from', None))
+        requested_to = data.get('requested_to', getattr(self.instance, 'requested_to', None))
+        
+        # 1a. Check if the dates conflict (requested_from must be strictly before requested_to)
+        # This fixes the original string vs. date comparison bug.
+        if requested_from and requested_to and requested_from >= requested_to:
+            raise serializers.ValidationError({
+                'requested_to': "Requested 'to' date must be after 'from' date."
+            })
+            
+        # 1b. Check for past dates
+        if requested_from and requested_from < timezone.localdate():
+            raise serializers.ValidationError({
+                'requested_from': "Cannot request an item for a past date."
+            })
+
         # Get the item instance and request user
         item = data.get('item') or getattr(self.instance, 'item', None)
         request = self.context.get('request')
         
-        # 1. Ensure item owner is not the borrower (only checked on creation/if item is updated)
+        # 2. Ensure item owner is not the borrower (only checked on creation/if item is updated)
         if request and item and request.user == item.owner:
             # Check only for creation or if the item field is being updated
             if self.instance is None or 'item' in data:
                 raise serializers.ValidationError("You cannot borrow your own item.")
         
-        # Get/default date fields for availability check
-        requested_from = data.get('requested_from', getattr(self.instance, 'requested_from', None))
-        requested_to = data.get('requested_to', getattr(self.instance, 'requested_to', None))
-        
-        # 2. Item Availability and Overlap Validation
+        # 3. Item Availability and Overlap Validation
         if item and requested_from and requested_to:
             # Check if item is available for lending (using the model's is_available field)
             if not item.is_available:
                 raise serializers.ValidationError("This item is currently not available for lending.")
             
             # Check for overlapping unavailable periods marked by the owner
+            # (Assuming 'availabilities' is the related name from the Availability model to Item)
             overlapping_unavailable = item.availabilities.filter(
                 unavailable_from__lte=requested_to,
                 unavailable_to__gte=requested_from
@@ -80,6 +86,7 @@ class LendingRequestSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Item is not available for the requested dates due to owner's block.")
             
             # Check for approved/pending/on_loan lending requests that overlap
+            # (Assuming 'lending_requests' is the related name from LendingRequest model to Item)
             overlapping_requests = item.lending_requests.filter(
                 status__in=['PENDING', 'APPROVED', 'ON_LOAN'],
                 requested_from__lte=requested_to,
