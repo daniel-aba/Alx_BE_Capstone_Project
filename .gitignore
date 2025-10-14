@@ -16,3 +16,9 @@ db.sqlite3
 
 # Operating System files
 .DS_Store
+
+# Ignore local environment secrets
+.env
+
+# Ignore collected static files
+staticfiles/
