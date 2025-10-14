@@ -1,29 +1,39 @@
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework import serializers # For ValidationError
+from rest_framework import serializers 
 from django.db import models
-from django.utils import timezone # Needed for setting returned_at
+from django.utils import timezone
 from .models import LendingRequest
 from .serializers import LendingRequestSerializer
-# Assuming you moved IsOwnerOrBorrower to a permissions.py file:
-# from .permissions import IsOwnerOrBorrower 
-# If it's still in this file, you can remove the next line and uncomment the original definition.
-from messaging.models import Message # Import the Message model!
+from messaging.models import Message # Import the Message model
 
+# -------------------------------------------------------------
+# STEP 1: Custom Permission Class (Replaced IsOwnerOrBorrower)
+# -------------------------------------------------------------
 
-# NOTE: If you haven't moved this class, keep it here.
-# If you *have* moved it to permissions.py, delete this section 
-# and uncomment the import at the top of the file.
-class IsOwnerOrBorrower(permissions.BasePermission):
+class IsItemOwnerOrRequester(permissions.BasePermission):
+    """
+    Custom permission to control access to LendingRequest objects.
+    - Allows read access (GET) to anyone authenticated.
+    - Allows updates (PATCH/PUT) only if the user is the item owner 
+      or the request borrower.
+    """
     def has_object_permission(self, request, view, obj):
-        # Allow read/update access if the user is the borrower OR the item owner.
-        return obj.borrower == request.user or obj.item.owner == request.user
+        # Allow read access (GET, HEAD, OPTIONS)
+        if request.method in permissions.SAFE_METHODS:
+            return True
 
+        # Check if the user is the item owner or the request borrower
+        is_owner = obj.item.owner == request.user
+        is_requester = obj.borrower == request.user
+        
+        return is_owner or is_requester
 
 class LendingRequestViewSet(viewsets.ModelViewSet):
     serializer_class = LendingRequestSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwnerOrBorrower]
+    # Use the new, more specific permission class
+    permission_classes = [permissions.IsAuthenticated, IsItemOwnerOrRequester]
 
     def get_queryset(self):
         user = self.request.user
@@ -33,66 +43,82 @@ class LendingRequestViewSet(viewsets.ModelViewSet):
         ).select_related('borrower', 'item', 'item__owner').distinct()
     
     def perform_create(self, serializer):
-        # Status automatically set to PENDING by the model's default.
-        serializer.save(borrower=self.request.user)
+        # Automatically sets the borrower and initial status
+        serializer.save(borrower=self.request.user, status='PENDING')
 
-    # Core logic for status changes and auto-messaging
-    def perform_update(self, serializer):
-        # Get the status before the update
-        old_status = serializer.instance.status
+    # -----------------------------------------------------------------
+    # STEP 2: Implement Status Change and Auto-Messaging Logic in update()
+    # -----------------------------------------------------------------
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+
+        old_status = instance.status
         
-        # Save the instance to apply the update (including status change)
-        new_request = serializer.save()
-        new_status = new_request.status
+        # Save the instance to apply the update (calls perform_update internally)
+        self.perform_update(serializer) 
+        
+        new_status = instance.status
+        
+        # Initialize content to None
+        content = None
+        sender = None
+        recipient = None
 
-        # Only proceed with custom messaging/workflow if the status has actually changed
+        # --- Auto-Messaging Logic (Triggered only if status changed) ---
         if old_status != new_status:
-            item_owner = new_request.item.owner
-            borrower = new_request.borrower
+            item_name = instance.item.name
             
-            # --- Auto-Messaging & Workflow Logic ---
-
             # 1. OWNER Actions: APPROVED/DENIED
             if new_status in ['APPROVED', 'DENIED']:
-                if self.request.user != item_owner:
-                    # Non-owner attempting to approve/deny should raise an error
+                # Ensure only the item owner can trigger these critical status changes
+                if self.request.user != instance.item.owner:
+                    # Raise a validation error if a non-owner tries to approve/deny
                     raise serializers.ValidationError({"status": "Only the item owner can approve or deny a request."})
                 
-                recipient = borrower
-                sender = item_owner
+                recipient = instance.borrower
+                sender = instance.item.owner
                 action_word = new_status.upper()
-                content = f"Your request for '{new_request.item.name}' has been **{action_word}** by the owner."
+                
+                content = f"Your request for '{item_name}' has been **{action_word}** by the owner."
             
-            # 2. RETURN Action: COMPLETED
+            # 2. RETURN Action: COMPLETED (Can be triggered by owner or borrower)
             elif new_status == 'COMPLETED':
-                # The IsOwnerOrBorrower permission already restricts who can update the object.
-                # This check ensures that only the borrower or the owner is making the call.
-                if self.request.user != item_owner and self.request.user != borrower:
-                    # Unreachable if permissions work, but good safeguard
-                    raise serializers.ValidationError({"status": "Only the item owner or borrower can mark an item as returned."})
                 
-                # Manually set the return timestamp
-                new_request.returned_at = timezone.now() 
-                new_request.save() # Save needed for the timestamp field
+                # Set returned_at timestamp if not already set
+                if not instance.returned_at:
+                    instance.returned_at = timezone.now() 
+                    # Use update_fields to save only the changed field
+                    instance.save(update_fields=['returned_at']) 
                 
-                # Notify the person who *didn't* mark it complete
-                recipient = item_owner if self.request.user == borrower else borrower
-                sender = self.request.user
-                content = f"The item '{new_request.item.name}' has been marked as **RETURNED** by {sender.username}."
+                # Determine who gets notified (the person who didn't mark it complete)
+                if request.user == instance.borrower:
+                    recipient = instance.item.owner # Borrower notified owner
+                    sender = instance.borrower
+                    actor = "the borrower"
+                else:
+                    recipient = instance.borrower # Owner notified borrower
+                    sender = instance.item.owner
+                    actor = "the owner"
+                
+                content = f"The item '{item_name}' has been marked as **RETURNED** by {actor}."
             
-            # 3. Create the Message object if a notification message was generated
-            # Check if 'content' was set in the blocks above
-            if 'content' in locals():
+            # 3. CANCELLED Action (Usually triggered by borrower)
+            elif new_status == 'CANCELLED':
+                # Notify the owner that the borrower cancelled
+                recipient = instance.item.owner
+                sender = instance.borrower
+                content = f"The request for '{item_name}' was CANCELLED by the borrower."
+
+            # 4. Create the Message object if 'content' was successfully generated
+            if content and sender and recipient:
                 Message.objects.create(
                     sender=sender,
                     recipient=recipient,
                     content=content,
-                    # Optional: link the message directly to the lending request
-                    # related_object=new_request # Requires a GenericForeignKey on Message model
                 )
-        
-        # Final save for standard updates or the status change, ensures updated_at is set.
-        # This call is already included implicitly by the initial serializer.save() at the start,
-        # but calling super().perform_update(serializer) ensures standard DRF behaviour is followed 
-        # for fields other than status that might have been updated.
-        super().perform_update(serializer)
+
+        # Return the response data
+        return Response(serializer.data)
