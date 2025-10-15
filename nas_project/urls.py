@@ -2,31 +2,49 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
-# Import ViewSets and utility view from the users app
+# --- 1. Users App Imports ---
 from users.views import UserRegistrationViewSet, UserProfileViewSet, auth_client_view
-# You will need to import your login and logout views if they are custom:
-# from users.views import UserLoginView, UserLogoutView 
-# (Assuming your login/logout views are handled by the standard token auth included below)
+
+# --- 2. Authentication Imports (Assuming Simple DRF Token Auth) ---
+# If you created custom login/logout views, make sure they are imported:
+from rest_framework.authtoken.views import obtain_auth_token 
+# ^ This is the standard DRF view for token login
+
+# --- 3. Other App Imports (Assume these ViewSets exist) ---
+from items.views import ItemViewSet
+from lending.views import LendingRequestViewSet
+from messaging.views import MessageViewSet
 
 
 # Initialize the router for API endpoints
 router = DefaultRouter()
 
-# ------------------------------------------------------------------
-# 1. User Registration (Handles POST /api/users/)
-# This maps the POST request to the CreateModelMixin in UserRegistrationViewSet.
-# ------------------------------------------------------------------
+# ==================================================================
+# API ROUTER REGISTRATION (Handles /api/{endpoint}/ and /api/{endpoint}/{pk}/)
+# ==================================================================
+
+# 1. Users App (Registration and Profile Management)
+# Registration: Handles POST /api/users/ (for creating a new user)
 router.register(r'users', UserRegistrationViewSet, basename='user-register')
 
-# ------------------------------------------------------------------
-# 2. Other App ViewSets (You will need to add these later)
-# Example:
-# from items.views import ItemViewSet
-# router.register(r'items', ItemViewSet, basename='item')
-# ------------------------------------------------------------------
+# Profile: Handles GET, PUT, PATCH /api/profiles/me/
+# Note: We'll use 'profiles' as the base, and map 'me' separately below
+router.register(r'profiles', UserProfileViewSet, basename='user-profile')
+
+# 2. Items App
+router.register(r'items', ItemViewSet, basename='item')
+
+# 3. Lending App
+router.register(r'lending-requests', LendingRequestViewSet, basename='lending-request')
+
+# 4. Messaging App
+router.register(r'messages', MessageViewSet, basename='message')
 
 
-# Standard Django URL Patterns
+# ==================================================================
+# STANDARD DJANGO URL PATTERNS
+# ==================================================================
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     
@@ -34,27 +52,30 @@ urlpatterns = [
     path('auth-client/', auth_client_view, name='auth-client'),
 
     # ------------------------------------------------------------------
-    # API Endpoints
+    # API ENDPOINTS
     # ------------------------------------------------------------------
 
-    # 1. API Router (Includes /api/users/, and any future registered viewsets)
+    # 1. API Router (Includes all registered viewsets: items, lending-requests, etc.)
     path('api/', include(router.urls)),
 
-    # 2. Custom Profile Retrieval Endpoint (/api/me/)
-    # This maps the detail actions (GET, PUT, PATCH) of UserProfileViewSet 
-    # to the endpoint /api/me/ for the currently authenticated user.
+    # 2. Dedicated User Profile Endpoint (/api/me/)
+    # We explicitly map the retrieve action to the base URL for the current user.
+    # We use UserProfileViewSet which is set up to return request.user in get_object()
     path('api/me/', UserProfileViewSet.as_view({
-        'get': 'retrieve', 
-        'put': 'update', 
+        'get': 'retrieve',
+        'put': 'update',
         'patch': 'partial_update'
     }), name='user-profile-me'),
 
-    # 3. Token Authentication Endpoints 
-    # This assumes you are using drf-authtoken or a similar custom solution 
-    # that registers its URLs separately. 
-    path('api/auth/', include('rest_framework.urls')), # For browsable API login/logout
-    
-    # If you have custom login/logout views, uncomment and map them:
-    # path('api/auth/token/login/', UserLoginView.as_view(), name='login'),
-    # path('api/auth/token/logout/', UserLogoutView.as_view(), name='logout'),
+
+    # 3. Token Authentication Endpoints (CRITICAL FOR LOGIN/LOGOUT)
+    path('api/auth/token/login/', obtain_auth_token, name='token-login'), 
+    # ^ Standard DRF login handler: expects username/password, returns token.
+
+    # Logout (Token destruction) - Requires a custom view, often in users/views.py
+    # path('api/auth/token/logout/', UserLogoutView.as_view(), name='token-logout'), 
+    # ^ Uncomment this if you implement UserLogoutView
+
+    # Fallback for browsable API login/logout links
+    path('api/auth/', include('rest_framework.urls')), 
 ]
