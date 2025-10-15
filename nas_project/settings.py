@@ -5,6 +5,7 @@ Django settings for nas_project project.
 from pathlib import Path
 import os
 from dotenv import load_dotenv
+from datetime import timedelta # Import needed for defining JWT token lifetimes
 
 # Load environment variables from .env file (if it exists)
 # This is crucial for local development secrets
@@ -47,7 +48,8 @@ INSTALLED_APPS = [
     
     # Third-party apps
     'rest_framework',
-    'rest_framework.authtoken', # Required for TokenAuthentication
+    # Removed 'rest_framework.authtoken' as we are switching to JWTs
+    'rest_framework_simplejwt', # New app for dynamic (expiring) JSON Web Tokens
 
     # Local apps
     'users.apps.UsersConfig', 
@@ -142,12 +144,13 @@ AUTH_USER_MODEL = 'users.User'
 
 # -----------------------------------------------------------
 # DJANGO REST FRAMEWORK (DRF) CONFIGURATION
+# Using JSON Web Tokens (JWT) for dynamic, expiring tokens
 # -----------------------------------------------------------
 
 REST_FRAMEWORK = {
-    # Sets default authentication to Token (for Postman/APIs) and Session (for browsable API)
+    # Sets default authentication to JWT (for dynamic tokens) and Session (for browsable API)
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication', 
+        'rest_framework_simplejwt.authentication.JWTAuthentication', # Replaces TokenAuthentication
         'rest_framework.authentication.SessionAuthentication',
     ],
     # Sets the default permission: requires login for almost all views
@@ -157,4 +160,35 @@ REST_FRAMEWORK = {
     # Forces date-time serialization to a standard format
     'DATETIME_FORMAT': "%Y-%m-%dT%H:%M:%S%z",
     'DATE_FORMAT': "%Y-%m-%d",
+}
+
+
+# -----------------------------------------------------------
+# SIMPLE JWT CONFIGURATION (DYNAMIC TOKENS)
+# This controls the expiration logic for the JWTs.
+# -----------------------------------------------------------
+
+SIMPLE_JWT = {
+    # Access Token: Short lifetime for security (must be re-fetched frequently)
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15), 
+    
+    # Refresh Token: Longer lifetime to avoid frequent logins (used to get a new Access Token)
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    
+    # Key settings for rotation and security
+    'ROTATE_REFRESH_TOKENS': True,        # Refresh tokens are rotated after use
+    'BLACKLIST_AFTER_ROTATION': True,     # Old refresh tokens are blacklisted
+    
+    # Other standard JWT settings
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'AUTH_HEADER_TYPES': ('Bearer',),     # Standard header type for JWT
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
+    'JTI_CLAIM': 'jti',
+    # SLIDING_TOKEN settings are generally for a different flow, commenting out if not used
+    # 'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
+    # 'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
+    # 'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 }
