@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'rest_framework',
     # Removed 'rest_framework.authtoken' as we are switching to JWTs
     'rest_framework_simplejwt', # New app for dynamic (expiring) JSON Web Tokens
+    'rest_framework_simplejwt.token_blacklist', # ADDED for server-side token revocation (logout)
 
     # Local apps
     'users.apps.UsersConfig', 

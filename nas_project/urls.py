@@ -5,7 +5,8 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 # --- 1. Users App Imports ---
-from users.views import UserRegistrationViewSet, UserProfileViewSet, auth_client_view
+# NOTE: Added UserLogoutView import here
+from users.views import UserRegistrationViewSet, UserProfileViewSet, auth_client_view, UserLogoutView
 
 # --- 2. Authentication Imports (Using Simple JWT) ---
 from rest_framework_simplejwt.views import (
@@ -79,9 +80,8 @@ urlpatterns = [
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
 
 
-    # Logout (Token destruction) - Requires a custom view, often in users/views.py
-    # path('api/auth/token/logout/', UserLogoutView.as_view(), name='token-logout'), 
-    # ^ Uncomment this if you implement UserLogoutView
+    # Logout (Token destruction) - Now using the custom UserLogoutView from users/views.py
+    path('api/auth/token/logout/', UserLogoutView.as_view(), name='token-logout'), 
 
     # Fallback for browsable API login/logout links
     path('api/auth/', include('rest_framework.urls')), 
