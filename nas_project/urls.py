@@ -1,3 +1,5 @@
+# nas_project/urls.py
+
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
@@ -5,10 +7,12 @@ from rest_framework.routers import DefaultRouter
 # --- 1. Users App Imports ---
 from users.views import UserRegistrationViewSet, UserProfileViewSet, auth_client_view
 
-# --- 2. Authentication Imports (Assuming Simple DRF Token Auth) ---
-# If you created custom login/logout views, make sure they are imported:
-from rest_framework.authtoken.views import obtain_auth_token 
-# ^ This is the standard DRF view for token login
+# --- 2. Authentication Imports (Using Simple JWT) ---
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,  # Handles POST to get access and refresh tokens
+    TokenRefreshView,     # Handles POST to get a new access token
+)
+# Note: Removed 'from rest_framework.authtoken.views import obtain_auth_token'
 
 # --- 3. Other App Imports (Assume these ViewSets exist) ---
 from items.views import ItemViewSet
@@ -68,9 +72,12 @@ urlpatterns = [
     }), name='user-profile-me'),
 
 
-    # 3. Token Authentication Endpoints (CRITICAL FOR LOGIN/LOGOUT)
-    path('api/auth/token/login/', obtain_auth_token, name='token-login'), 
-    # ^ Standard DRF login handler: expects username/password, returns token.
+    # 3. Simple JWT Authentication Endpoints (CRITICAL FOR LOGIN/TOKEN MANAGEMENT)
+    # The login endpoint (TokenObtainPairView)
+    path('api/auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    # The token refresh endpoint (TokenRefreshView)
+    path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+
 
     # Logout (Token destruction) - Requires a custom view, often in users/views.py
     # path('api/auth/token/logout/', UserLogoutView.as_view(), name='token-logout'), 
