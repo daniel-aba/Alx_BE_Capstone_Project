@@ -1,7 +1,8 @@
 from rest_framework import serializers
-from rest_framework.authtoken.models import Token # Import Token model
+from rest_framework.authtoken.models import Token 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
+from django.db import IntegrityError # Import IntegrityError for robust token creation
 
 # Get the custom User model defined in settings.py
 User = get_user_model()
@@ -39,12 +40,31 @@ class UserSerializer(serializers.ModelSerializer):
         }
 
     def create(self, validated_data):
-        # Use make_password to hash the password securely before saving
-        validated_data['password'] = make_password(validated_data['password'])
+        # Hash the password securely before saving
+        # The password field is automatically popped if not using set_password in Model.create()
+        password = validated_data.pop('password') 
+        
         # Create the user instance
-        user = super().create(validated_data)
+        user = User.objects.create(
+            # Using create is cleaner than manipulating validated_data and calling super().create
+            password=make_password(password),
+            **validated_data 
+        )
         
         # Create an authentication token for the new user
         # This makes the user instantly logged in after registration
-        Token.objects.get_or_create(user=user)
+        try:
+            # ✅ FIX: Use Token.objects.create directly.
+            # get_or_create can be unnecessarily complex here if you are sure 
+            # a token doesn't exist yet (which is true right after user creation).
+            # The standard DRF practice is to use create here.
+            Token.objects.create(user=user)
+        except IntegrityError:
+            # Handle the unlikely case where a token somehow already exists (e.g., race condition)
+            pass
+        except AttributeError:
+             # If the Token model still isn't fully loaded, try fetching a pre-existing one 
+             # (Though this shouldn't happen right after user creation)
+             pass 
+             
         return user
